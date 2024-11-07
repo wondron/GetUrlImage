@@ -26,9 +26,6 @@ class GetImageThread(QThread):
         dict_a.update(dict_b)
         self.save_dict = dict_a
         
-        print('new image', new_image)
-        print("total image", self.save_dict)
-        
 
     def set_image_folder(self, folder_path, food_name):
         os.makedirs(folder_path, exist_ok=True)
@@ -60,7 +57,7 @@ class GetImageThread(QThread):
                 response.raise_for_status()
                 with open(f"{self.save_path}/{image_name}", 'wb') as f:
                     f.write(response.content)
-                    print(f"图像保存位置：{save_path}")
+                    # print(f"图像保存位置：{save_path}")
             except Exception as e:
                 print(f"图像获取失败，{e}")
             time.sleep(1)
@@ -81,7 +78,7 @@ class GetImageThread(QThread):
                 response.raise_for_status()
                 with open(f"{self.save_path}/{image_name}", 'wb') as f:
                     f.write(response.content)
-                    print(f"图像保存位置：{save_path}")
+                    # print(f"图像保存位置：{save_path}")
             except Exception as e:
                 print(f"图像获取失败，{e}")
             time.sleep(1)

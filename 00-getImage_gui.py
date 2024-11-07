@@ -298,7 +298,6 @@ class PicCaptureTool(QWidget):
         save_path = os.path.join(file_folder, self.foodLabel.toPlainText())
         os.makedirs(save_path, exist_ok= True)
         save_path = os.path.join(save_path, image_name)
-        print("保存图像：", save_path)
 
         #图像裁剪
         image_rgb = cv2.cvtColor(self.opencv_image, cv2.COLOR_BGR2RGB)
