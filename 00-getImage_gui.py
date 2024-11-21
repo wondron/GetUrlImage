@@ -32,8 +32,8 @@ class PicCaptureTool(QWidget):
         self.r_widget = QWidget()
 
         # 设置窗口背景颜色以便于区分
-        self.l_widget.setStyleSheet("background-color: #bfbfcf;")
-        self.r_widget.setStyleSheet("background-color: lightgray;")
+        self.l_widget.setStyleSheet("background-color: #f0f0f0; font-family: '微软雅黑'; border: 2px solid #ccc;")
+        self.r_widget.setStyleSheet("background-color: #e0e0e0; font-family: '微软雅黑'; border: 2px solid #ccc;")
 
         # 在每个窗口中添加布局
         left_layout = QVBoxLayout()
@@ -56,8 +56,9 @@ class PicCaptureTool(QWidget):
         # 食材名称选择
         label_layout = QHBoxLayout()
         self.label = QLabel("食材名称")
+        self.label.setMinimumWidth(200)
         self.foodLabel = QTextEdit("板栗")
-        self.foodLabel.setMaximumHeight(25)
+        self.foodLabel.setMaximumHeight(35)
         self.showImage = QPushButton("开始搜索")
         self.showImage.clicked.connect(self.get_image_url)
         self.autoSave = QCheckBox('自动保存')
@@ -70,9 +71,11 @@ class PicCaptureTool(QWidget):
         # 保存位置选择
         savePath_layout = QHBoxLayout()
         save_label = QLabel("保存地址")
+        save_label.setMinimumWidth(200)
         self.save_path = QTextEdit("")
-        self.save_path.setMaximumHeight(25)
+        self.save_path.setMaximumHeight(35)
         self.dialog = QPushButton("...")
+        self.dialog.setMinimumWidth(50)
         self.dialog.clicked.connect(self.select_folder)
         savePath_layout.addWidget(save_label)
         savePath_layout.addWidget(self.save_path)
@@ -85,6 +88,7 @@ class PicCaptureTool(QWidget):
         self.progressBar.setMinimum(0)
         
         self.methods = QComboBox()
+        self.methods.setMinimumWidth(200)
         self.methods.insertItem(0, "豆果美食")
         self.methods.insertItem(1, "美食天下")
         self.methods.insertItem(2, "下厨房")

@@ -73,10 +73,14 @@ class GetImageThread(QThread):
             self.current_idx = self.current_idx + 1
             image_name = self.save_dict[image_url]
             save_path = os.path.join(self.save_path, image_name)
+            
+            if os.path.exists(save_path):
+                continue
+            
             try:
                 response = requests.get(image_url, headers = self.headers)
                 response.raise_for_status()
-                with open(f"{self.save_path}/{image_name}", 'wb') as f:
+                with open(save_path, 'wb') as f:
                     f.write(response.content)
                     # print(f"图像保存位置：{save_path}")
             except Exception as e:
