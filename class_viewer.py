@@ -67,6 +67,9 @@ class ImageViewer(QGraphicsView):
             self.setCursor(Qt.ClosedHandCursor)
 
     def mouseMoveEvent(self, event: QMouseEvent):
+        if self.pixmap_item == None:
+            return        
+        
         if self.start_pos:
             self.end_pos = self.mapToScene(event.pos())
 

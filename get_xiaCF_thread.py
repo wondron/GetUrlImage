@@ -3,7 +3,7 @@ import time, requests
 from tqdm import tqdm
 from urllib.parse import urljoin
 from PyQt5.QtCore import QObject, pyqtSignal, QThread
-import sys
+import sys, os
 from PyQt5.QtWidgets import QApplication
 
 
@@ -15,7 +15,22 @@ class GetXiaCFThread(QThread):
         self.headers = headers
         temp_url = url.rstrip('/') + '/'
         self.url = temp_url
-    
+        self.image_links = self.read_image_links()
+        print(self.image_links)
+        
+        
+    def read_image_links(self):
+        image_links = []
+        try:
+            with open('image_links.yaml', 'r') as file:
+                for line in file:
+                    if line.strip():
+                        image_links.append(line.strip()[2:])
+                os.remove('image_links.yaml')
+            return image_links
+        except Exception as e:
+            print(f"读取image_links.yaml时出错：{e}")
+            return []
     
     def set_food_name(self, food_name):
         self.food_name = food_name
@@ -26,13 +41,13 @@ class GetXiaCFThread(QThread):
         while True:
             try:
                 tryTime = tryTime + 1
-                response = requests.get(url, headers=headers)
+                response = requests.get(url, headers=headers, timeout=10)  # 设置超时时间
                 response.raise_for_status()
                 return response    
-            except:
+            except requests.exceptions.RequestException as e:
                 if tryTime >= retry_times:
                     return None
-                print(f"url 获取失败，当前尝试次数{tryTime}, 等待时间{wait_time}s")
+                print(f"url 获取失败，当前尝试次数{tryTime}, 等待时间{wait_time}s, 错误信息: {e}")
                 time.sleep(wait_time)
 
         
@@ -139,7 +154,7 @@ if __name__ == "__main__":
     search_url = 'https://www.xiachufang.com/search/?keyword={}&cat=1001'
     
     douguo = GetXiaCFThread(headers, search_url)
-    douguo.set_food_name("板栗")
+    douguo.set_food_name("穿心莲")
     douguo.connect_signal()
     douguo.test()
 

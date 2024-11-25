@@ -1,125 +1,150 @@
 from bs4 import BeautifulSoup
-import time, requests, pickle
-from tqdm import tqdm
+from PIL import Image
+import time, requests, os, sys
+from io import BytesIO
 from urllib.parse import urljoin
-from PyQt5.QtCore import QObject, pyqtSignal, QThread
-import sys
+from PyQt5.QtCore import QThread, pyqtSignal
 from PyQt5.QtWidgets import QApplication
+import warnings
+import yaml
 
+
+warnings.filterwarnings("ignore", category=UserWarning, module="bs4")
 
 class GetMeiShiThread(QThread):
     image_signal = pyqtSignal(dict)
-    
+
     def __init__(self, headers, url):
         super().__init__()
         self.headers = headers
-        temp_url = url.rstrip('/') + '/'
-        self.url = temp_url
+        self.url = url.rstrip('/') + '/'
+        
+        current_directory = os.getcwd()
+        self.yaml_path = os.path.join(current_directory, 'imagey.yaml')
+        self.image_links = self.read_image_links()
+        
+        # print(self.image_links)
     
-    
+    def read_image_links(self):
+        image_links = []
+        try:
+            with open(self.yaml_path, 'r') as file:
+                for line in file:
+                    if line.strip():
+                        image_links.append(line.strip()[2:])
+            os.remove(self.yaml_path)
+            return image_links
+        except Exception as e:
+            print(f"读取image_links.yaml时出错：{e}")
+            return []
+
     def set_food_name(self, food_name):
         self.food_name = food_name
-        
-    
+
     def get_response(self, url, headers, retry_times, wait_time):
-        tryTime = 0
-        while True:
+        try_time = 0
+        while try_time < retry_times:
             try:
-                tryTime = tryTime + 1
+                try_time = try_time + 1
                 response = requests.get(url, headers=headers)
                 response.raise_for_status()
-                return response    
-            except:
-                if tryTime >= retry_times:
-                    return None
-                print(f"url 获取失败，当前尝试次数{tryTime}, 等待时间{wait_time}s")
+                return response
+            except Exception as e:
+                print(f"URL 获取失败：{url}, 当前尝试次数 {try_time}, 等待时间 {wait_time}s，错误：{e}")
                 time.sleep(wait_time)
+        return None
 
-        
     def parse_image(self, image_url):
         dicts = {}
         response = self.get_response(image_url, self.headers, 3, 5)
-        
         if response is None:
-            print(f"{image_url}, 图像获取失败, 返回空字典！")
-            return {}
-        
-        # 找到所有的图片标签
+            print(f"{image_url}, 图像获取失败，返回空字典！")
+            return dicts
+
         soup = BeautifulSoup(response.text, 'html.parser')
         img_tags = soup.find_all('img')
-        
+        img_tag_data = soup.find_all("data-src")
+
         for img_tag in img_tags:
-            # 获取图片的URL
-            img_url = img_tag.get('src')
-            if 'x-oss-process=style' not in img_url:
+            img_url = img_tag.get('data-src')
+            if img_url is None:
+                img_url = img_tag.get('src')
+            
+            if not img_url or 'avatar' in img_url or 'x-oss-process=style' not in img_url:
                 continue
 
             temp_name = img_url.split('?')[0]
             name = temp_name.split('/')[-1].split('.')[0]
             houzhui = '.jpg' if temp_name.split('.')[-1].startswith('j') else '.png'
             total_name = f"300_{name}{houzhui}"
-            dicts[temp_name] = total_name        
-        return dicts
+            dicts[temp_name] = total_name
 
+        return dicts
 
     def get_image_url(self, url):
         all_links = []
-        nextLink = ''
-        
+        next_link = ''
         response = self.get_response(url, self.headers, 3, 5)
         if response is None:
-            return all_links, nextLink
-        
+            print("结果未获取，结束线程。")
+            return all_links, next_link
+
         soup = BeautifulSoup(response.text, 'html.parser')
         a_tags = soup.find_all('a', href=True)
-        print("权限申请成功！")
 
         for tag in a_tags:
             link = tag['href']
             if '下一页' in tag.contents:
-                nextLink = urljoin(url, link)
-                print("下一页：", link)
+                next_link = urljoin(url, link)
                 continue
             if 'recipe-' not in link:
                 continue
-
-            # 将相对路径转换为绝对路径
             if not requests.compat.urlparse(link).netloc:
-                link = requests.compat.urljoin(url, link)
-                
+                link = urljoin(url, link)
             all_links.append(link)
-            all_links = list(set(all_links))
-        
-        return all_links, nextLink
-    
+
+        return list(set(all_links)), next_link
+
+    def save_image_from_url(self, url, save_path):
+        try:
+            response = requests.get(url, headers=self.headers, verify=False)
+            response.raise_for_status()
+            image = Image.open(BytesIO(response.content))
+            image.save(save_path)
+            print(f"图像已保存到: {save_path}")
+        except Exception as e:
+            print(f"保存图像时出错：{e}")
 
     def test(self):
+        save_path = os.path.join(os.getcwd(), "image", self.food_name)
+        os.makedirs(save_path, exist_ok=True)
+
         first_url = self.url + self.food_name
-        
-        print("搜索URL：", first_url)
+        # print("搜索 URL：", first_url)
+
         all_links, next_link = self.get_image_url(first_url)
-        img_dicts = dict()
-        
-        while next_link != '':
+        img_dicts = {}
+
+        while next_link:
             for link in all_links:
+                with open(self.yaml_path, 'a') as file:
+                    yaml.dump([link], file)
+                    
+                if link in self.image_links:
+                    print("跳过已下载的链接：link")
+                    continue
                 img_dicts = self.parse_image(link)
-                self.image_signal.emit(img_dicts)
-                time.sleep(2)
+                # print("解析出的图片链接：", img_dicts)
+
+                for key, value in img_dicts.items():
+                    saves = os.path.join(save_path, value)
+                    self.save_image_from_url(key, saves)
+                    time.sleep(1)
+
             all_links, next_link = self.get_image_url(next_link)
-            
+
     def run(self):
-        first_url = self.url + self.food_name
-        
-        print("搜索URL：", first_url)
-        all_links, next_link = self.get_image_url(first_url)
-        img_dicts = dict()
-        
-        while next_link != '':
-            for link in all_links:
-                img_dicts = self.parse_image(link)
-                self.image_signal.emit(img_dicts)
-                time.sleep(2)
-            all_links, next_link = self.get_image_url(next_link)
+        self.test()
 
     def connect_signal(self):
         self.image_signal.connect(self.output_result)
@@ -130,12 +155,15 @@ class GetMeiShiThread(QThread):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    
-    headers = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:91.0) Gecko/20100101 Firefox/91.0' }
+
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
+        "Referer": "https://home.meishichina.com/",
+    }
     search_url = 'https://home.meishichina.com/search/'
-    
+
     douguo = GetMeiShiThread(headers, search_url)
-    douguo.set_food_name("板栗")
+    douguo.set_food_name("枸杞叶")
     douguo.connect_signal()
     douguo.test()
 

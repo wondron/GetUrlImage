@@ -1,1 +1,8 @@
 __pycache__
+image/
+build/
+dist/
+__pycache__/
+*.pyc
+00-getImage_gui.spec
+image_links.yaml

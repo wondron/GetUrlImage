@@ -74,6 +74,7 @@ class PicCaptureTool(QWidget):
         save_label.setMinimumWidth(200)
         self.save_path = QTextEdit("")
         self.save_path.setMaximumHeight(35)
+        self.save_path.setText(os.getcwd())
         self.dialog = QPushButton("...")
         self.dialog.setMinimumWidth(50)
         self.dialog.clicked.connect(self.select_folder)
@@ -296,6 +297,10 @@ class PicCaptureTool(QWidget):
                 print(f"保存图像时出错：{e}")
                         
     def on_save(self):
+        if self.image_url == []:
+            print("没有图片可以保存！")
+            return
+        
         image_name = self.image_dict[self.image_url[self.index]]
         file_folder = os.path.normpath(self.save_path.toPlainText())
         os.makedirs(file_folder, exist_ok= True)
